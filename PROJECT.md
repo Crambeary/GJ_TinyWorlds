@@ -43,7 +43,10 @@
 
 ### Assets
 - [ ] Gather free pixel art assets (with attribution)
-- [ ] Organize asset folders
+- [x] Organize asset folders
+  - Created standard folder structure in `assets/`
+  - Added .gdignore for proper file handling
+  - Added README with asset guidelines
 
 ## Risks & Mitigations
 - **Scope Creep:** Stick to 3 levels, core mechanics only
