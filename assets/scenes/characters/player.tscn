@@ -746,7 +746,8 @@ animations = [{
 "speed": 8.0
 }]
 
-[node name="Player" type="CharacterBody2D"]
+[node name="Player" type="CharacterBody2D" groups=["player"]]
+collision_layer = 2
 slide_on_ceiling = false
 script = ExtResource("1_03h60")
 

@@ -6,11 +6,11 @@
 [node name="Main" type="Node2D"]
 
 [node name="Polygon2D" type="Polygon2D" parent="."]
-position = Vector2(-56, -8)
+position = Vector2(-672, -12)
 color = Color(0.60933, 0.60933, 0.60933, 1)
 polygon = PackedVector2Array(0, -200, 768, -200, 768, 192, 0, 192)
 
 [node name="Priest" parent="." instance=ExtResource("2_js31w")]
-position = Vector2(272, -48)
+position = Vector2(-256, 0)
 
 [node name="Player" parent="." instance=ExtResource("1_l3887")]

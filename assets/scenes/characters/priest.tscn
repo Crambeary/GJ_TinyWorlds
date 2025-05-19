@@ -1,7 +1,9 @@
-[gd_scene load_steps=14 format=3 uid="uid://b7vsghmbmmjgp"]
+[gd_scene load_steps=16 format=3 uid="uid://b7vsghmbmmjgp"]
 
 [ext_resource type="Texture2D" uid="uid://cupoax47okhe1" path="res://assets/art/characters/Priest/Idle-Sheet.png" id="1_n6qrl"]
+[ext_resource type="Script" uid="uid://bnqt6m01mcsv8" path="res://assets/scenes/characters/priest.gd" id="1_oj818"]
 [ext_resource type="Texture2D" uid="uid://bqtajh4q7tj0" path="res://assets/art/characters/Priest/Run-Sheet.png" id="2_6ragu"]
+[ext_resource type="PackedScene" uid="uid://c7i2wn723ofv4" path="res://addons/MizGodotTools/characters_utility/vision_manager/vision_manager.tscn" id="3_6ragu"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_oj818"]
 atlas = ExtResource("1_n6qrl")
@@ -82,14 +84,22 @@ animations = [{
 "texture": SubResource("AtlasTexture_im80k")
 }],
 "loop": true,
-"name": &"new_animation",
+"name": &"walk",
 "speed": 5.0
 }]
 
 [node name="Priest" type="Node2D"]
+script = ExtResource("1_oj818")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 position = Vector2(0, -32)
 sprite_frames = SubResource("SpriteFrames_kgrtk")
 autoplay = "default"
-frame_progress = 0.60705
+frame_progress = 0.185314
+flip_h = true
+
+[node name="VisionManager" parent="." instance=ExtResource("3_6ragu")]
+position = Vector2(0, -21)
+cant_see_past_dist = 250.0
+always_see_within_dist = 10.0
+debug_view = true

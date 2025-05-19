@@ -16,6 +16,10 @@ run/main_scene="uid://b82ljks0hknpj"
 config/features=PackedStringArray("4.4")
 config/icon="res://icon.png"
 
+[global_group]
+
+player=""
+
 [input]
 
 move_left={
