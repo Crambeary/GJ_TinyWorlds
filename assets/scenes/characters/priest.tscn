@@ -1,0 +1,95 @@
+[gd_scene load_steps=14 format=3 uid="uid://b7vsghmbmmjgp"]
+
+[ext_resource type="Texture2D" uid="uid://cupoax47okhe1" path="res://assets/art/characters/Priest/Idle-Sheet.png" id="1_n6qrl"]
+[ext_resource type="Texture2D" uid="uid://bqtajh4q7tj0" path="res://assets/art/characters/Priest/Run-Sheet.png" id="2_6ragu"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_oj818"]
+atlas = ExtResource("1_n6qrl")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_vkvh7"]
+atlas = ExtResource("1_n6qrl")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_pxyg7"]
+atlas = ExtResource("1_n6qrl")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_4rwxl"]
+atlas = ExtResource("1_n6qrl")
+region = Rect2(192, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_okh04"]
+atlas = ExtResource("2_6ragu")
+region = Rect2(0, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_whf6w"]
+atlas = ExtResource("2_6ragu")
+region = Rect2(64, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_v8on5"]
+atlas = ExtResource("2_6ragu")
+region = Rect2(128, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_yjeuy"]
+atlas = ExtResource("2_6ragu")
+region = Rect2(192, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_x8u4e"]
+atlas = ExtResource("2_6ragu")
+region = Rect2(256, 0, 64, 64)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_im80k"]
+atlas = ExtResource("2_6ragu")
+region = Rect2(320, 0, 64, 64)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_kgrtk"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_oj818")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_vkvh7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_pxyg7")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_4rwxl")
+}],
+"loop": true,
+"name": &"default",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_okh04")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_whf6w")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_v8on5")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_yjeuy")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_x8u4e")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_im80k")
+}],
+"loop": true,
+"name": &"new_animation",
+"speed": 5.0
+}]
+
+[node name="Priest" type="Node2D"]
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+position = Vector2(0, -32)
+sprite_frames = SubResource("SpriteFrames_kgrtk")
+autoplay = "default"
+frame_progress = 0.60705
