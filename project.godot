@@ -19,6 +19,7 @@ config/icon="res://icon.png"
 [global_group]
 
 player=""
+Priest1=""
 
 [input]
 
