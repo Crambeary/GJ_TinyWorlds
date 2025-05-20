@@ -22,35 +22,8 @@ func handle_waypoint_action(wp):
 			current_state = STATE.PATROL
 		_:
 			pass
-
-func convert_string_to_direction(direction: Vector2) -> VisionManager.DIRECTIONS:
-	match direction:
-		Vector2.RIGHT:
-			return VisionManager.DIRECTIONS.RIGHT
-		Vector2.LEFT:
-			return VisionManager.DIRECTIONS.LEFT
-		Vector2.UP:
-			return VisionManager.DIRECTIONS.UP
-		Vector2.DOWN:
-			return VisionManager.DIRECTIONS.DOWN
-	return VisionManager.DIRECTIONS.LEFT
 	
-func flip_direction(direction: Vector2) -> Vector2:
-	match direction:
-		Vector2.RIGHT:
-			return Vector2.LEFT
-		Vector2.LEFT:
-			return Vector2.RIGHT
-		Vector2.UP:
-			return Vector2.DOWN
-		Vector2.DOWN:
-			return Vector2.UP
-	return Vector2.RIGHT
-	
-
 func set_vision_direction(direction: Vector2) -> void:
-	#vision_manager.front_direction = convert_string_to_direction(direction)
-	#vision_manager.look_at(global_position + direction)
 	direction = direction * -1 # Invert Vector2 Values
 	vision_manager.rotation = direction.angle()
 
