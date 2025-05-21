@@ -25,8 +25,14 @@ enum AlertnessState {IDLE, SUSPICIOUS, ALERTED}
 # Rate of change per second
 @export var initial_alertness_increase_rate: float = 0.2  # Slow initial increase
 @export var alertness_increase_rate: float = 0.5          # Faster increase once suspicious/alerted
-@export var cooldown_delay: float = 2.0                   # Seconds before cooldown starts
-@export var cooldown_rate: float = 0.1                   # Rate of cooldown after delay
+
+# Cooldown for returning to IDLE (e.g., from ALERTED or brief sightings)
+@export var idle_cooldown_delay: float = 2.0              # Seconds before idle cooldown starts
+@export var idle_cooldown_rate: float = 0.1               # Rate of idle cooldown after delay
+
+# Cooldown specific to SUSPICIOUS state
+@export var suspicious_cooldown_delay: float = 5.0        # Seconds before suspicious cooldown starts
+@export var suspicious_cooldown_rate: float = 0.05        # Rate of suspicious cooldown after delay (slower)
 
 # Internal state
 var cooldown_timer: float = 0.0
@@ -126,12 +132,16 @@ func _physics_process(delta: float) -> void:
 				await handle_waypoint_action(wp)
 			current_index = (current_index + 1) % waypoints.size()
 	
-	update_alertness()
+	update_alertness() # Initial update based on patrol/wait
 	
 	if player:
 		var player_global_pos: Vector2 = player.global_position
 		var player_in_sight = vision_manager.can_see_point(player_global_pos)
 		was_player_seen = was_player_seen or player_in_sight
+
+		# These will store the currently applicable delay/rate for logic and debug output
+		var active_cooldown_delay: float = idle_cooldown_delay
+		var active_cooldown_rate: float = idle_cooldown_rate
 
 		# Handle alertness changes based on player visibility and state
 		if player_in_sight:
@@ -145,39 +155,56 @@ func _physics_process(delta: float) -> void:
 			else:
 				alertness_value = min(alertness_value + (alertness_increase_rate * delta), 1.0)
 			
-		else:
+		else: # Player not in sight
 			# If we've seen the player before and now don't see them, start cooldown timer
 			if was_player_seen and !is_in_cooldown:
 				cooldown_timer += delta
-				if cooldown_timer >= cooldown_delay:
+				
+				# Determine which delay to use
+				if alertness_state == AlertnessState.SUSPICIOUS:
+					active_cooldown_delay = suspicious_cooldown_delay
+				else:
+					active_cooldown_delay = idle_cooldown_delay
+				
+				if cooldown_timer >= active_cooldown_delay:
 					is_in_cooldown = true
-					cooldown_timer = 0.0
+					cooldown_timer = 0.0 # Reset timer as we are now in cooldown
 			
 			# Only decrease alertness if in cooldown mode
 			if is_in_cooldown:
-				alertness_value = max(alertness_value - (cooldown_rate * delta), 0.0)
+				# Determine which rate to use
+				if alertness_value >= suspicion_threshold: # If still suspicious or cooling down from alerted
+					active_cooldown_rate = suspicious_cooldown_rate
+				else: # Cooling down below suspicious, towards idle
+					active_cooldown_rate = idle_cooldown_rate
+				
+				alertness_value = max(alertness_value - (active_cooldown_rate * delta), 0.0)
+				
 				if alertness_value <= 0.0:
 					alertness_value = 0.0
 					was_player_seen = false
 					is_in_cooldown = false
 		
-		# Update state based on alertness
+		# Update state based on alertness value changes from player interaction
 		update_alertness()
 		
 		# Debug output
-		var state = "IDLE"
+		var state_str = "IDLE"
 		if alertness_value >= alertness_threshold:
-			state = "ALERTED"
+			state_str = "ALERTED"
 		elif alertness_value >= suspicion_threshold:
-			state = "SUSPICIOUS"
+			state_str = "SUSPICIOUS"
 		
 		# Build cooldown status string
-		var cooldown_status = "Cooldown: " + ("Active" if is_in_cooldown else "Inactive")
-		if was_player_seen:
-			cooldown_status += ", Timer: %.1f/%.1f" % [cooldown_timer, cooldown_delay]
+		var cooldown_status_text = "Cooldown: " + ("Active" if is_in_cooldown else "Inactive")
+		if was_player_seen and !player_in_sight: # Only show timer details if relevant
+			if !is_in_cooldown: # Show timer counting up to delay
+				cooldown_status_text += ", Timer: %.1f/%.1f (Delay)" % [cooldown_timer, active_cooldown_delay]
+			else: # Show that cooldown is active (decreasing alertness)
+				cooldown_status_text += ", Rate: %.2f" % active_cooldown_rate
 		
 		# Create visual bar
 		var bar = "[" + ("|" as String).repeat(int(alertness_value * 20)) \
 			+ (" " as String).repeat(20 - int(alertness_value * 20)) \
-			+ "] %3d%% %-10s (%s)" % [int(alertness_value * 100), state, cooldown_status]
+			+ "] %3d%% %-10s (%s)" % [int(alertness_value * 100), state_str, cooldown_status_text]
 		print("Alertness: ", bar)
