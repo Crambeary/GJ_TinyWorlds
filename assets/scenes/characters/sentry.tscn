@@ -1,10 +1,11 @@
-[gd_scene load_steps=25 format=3 uid="uid://cl4ybl3p53ljw"]
+[gd_scene load_steps=26 format=3 uid="uid://cl4ybl3p53ljw"]
 
 [ext_resource type="Script" uid="uid://cptjrtmqy74b5" path="res://assets/scenes/characters/sentry.gd" id="1_1ae5g"]
 [ext_resource type="PackedScene" uid="uid://c7i2wn723ofv4" path="res://addons/MizGodotTools/characters_utility/vision_manager/vision_manager.tscn" id="1_hkm4p"]
 [ext_resource type="Texture2D" uid="uid://dmwj6kob2ws7o" path="res://assets/art/characters/Prototype_Character.png" id="2_1ae5g"]
 [ext_resource type="PackedScene" uid="uid://cr1mfjjmwdlas" path="res://assets/scenes/ui/question_mark.tscn" id="4_8eq4e"]
 [ext_resource type="PackedScene" uid="uid://cfviq43lg2ihu" path="res://assets/scenes/ui/exclamation.tscn" id="5_g80ai"]
+[ext_resource type="PackedScene" uid="uid://dofr485cy0d56" path="res://assets/scenes/ui/status_bar.tscn" id="6_tmvlk"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_8eq4e"]
 atlas = ExtResource("2_1ae5g")
@@ -194,3 +195,7 @@ scale = Vector2(0.6, 0.6)
 visible = false
 position = Vector2(0, -32)
 scale = Vector2(0.6, 0.6)
+
+[node name="Control" parent="." instance=ExtResource("6_tmvlk")]
+offset_top = -32.0
+offset_bottom = -32.0

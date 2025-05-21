@@ -5,7 +5,17 @@ var player: Node2D
 @onready var animated_sprite_2d: AnimatedSprite2D = $AnimatedSprite2D
 @onready var question_mark: Node2D = $Emotes/QuestionMark
 @onready var exclamation: Node2D = $Emotes/Exclamation
+@onready var emote_node: Node2D = $Emotes
+@onready var animated_sprite_2d_ref_for_status_bar: AnimatedSprite2D = $AnimatedSprite2D # Explicit reference for clarity
 
+# Preload the status bar scene. Ensure this path is correct.
+const STATUS_BAR_SCENE: PackedScene = preload("res://assets/scenes/ui/status_bar.tscn")
+
+# CONFIGURATION for status bar positioning
+const STATUS_BAR_Y_OFFSET_FROM_SPRITE_TOP: float = -10.0 # Negative to go upwards from origin
+const PADDING_BELOW_EMOTE: float = 2.0 # Small space between emote and status bar
+
+var status_bar_instance: StatusBar
 
 @export var path_group_name: String = "Sentry1"
 @onready var waypoints: Array = get_tree().get_first_node_in_group(path_group_name).get_children()
@@ -16,9 +26,21 @@ enum AlertnessState {IDLE, SUSPICIOUS, ALERTED}
 @export var idle_task = IdleTasks.PATROL
 @export var alertness_state = AlertnessState.IDLE
 # Alertness ranges from 0.0 (completely calm) to 1.0 (fully alerted)
-@export_range(0.0, 1.0, 0.01) var alertness_value: float = 0.0
+@export_range(0.0, 1.0, 0.01) var alertness_value: float = 0.0:
+	set(value):
+		var new_value = clampf(value, 0.0, 1.0)
+		if alertness_value == new_value:
+			return
+		alertness_value = new_value
+		# Update debug print for alertness
+		# print_alertness_bar()
+		# Potentially change state based on new alertness
+		# check_alertness_thresholds()
+		if is_instance_valid(status_bar_instance):
+			status_bar_instance.update_status(alertness_value, 1.0) # Max is 1.0 for alertness
 
 # Thresholds as percentages (0.0-1.0)
+const SUSPICIOUS_THRESHOLD: float = 0.3 # Example: 30% alertness to become suspicious
 @export_range(0.0, 1.0, 0.05) var suspicion_threshold: float = 0.3
 @export_range(0.0, 1.0, 0.05) var alertness_threshold: float = 0.7
 
@@ -94,7 +116,30 @@ func update_alert_state(new_state: AlertnessState) -> void:
 	alertness_state = new_state
 	
 func _ready() -> void:
+	print("Sentry _ready: Attempting to initialize status bar.") # Debug print
+	if STATUS_BAR_SCENE == null:
+		push_error("Sentry _ready: STATUS_BAR_SCENE is null! Preload failed.")
+		return # Stop further execution if preload failed
+	else:
+		print("Sentry _ready: STATUS_BAR_SCENE loaded successfully.")
+	
 	player = get_tree().get_first_node_in_group("player")
+
+	# Instantiate and add the status bar
+	if STATUS_BAR_SCENE:
+		status_bar_instance = STATUS_BAR_SCENE.instantiate() as StatusBar # Cast to StatusBar
+		if status_bar_instance == null:
+			push_error("Sentry _ready: Failed to instantiate STATUS_BAR_SCENE! status_bar_instance is null.")
+			# return # Stop if instantiation failed - let's allow it to continue for now to see other errors if any
+		else:
+			print("Sentry _ready: status_bar_instance created successfully: ", status_bar_instance)
+		
+		add_child(status_bar_instance)
+		# Initial update for alertness
+		status_bar_instance.update_status(alertness_value, 1.0)
+	else:
+		# This case should ideally be caught by the null check above
+		push_error("Sentry _ready: STATUS_BAR_SCENE was unexpectedly null after initial check.")
 
 func _physics_process(delta: float) -> void:
 	var target = get_current_waypoint().global_position
@@ -208,3 +253,47 @@ func _physics_process(delta: float) -> void:
 			+ (" " as String).repeat(20 - int(alertness_value * 20)) \
 			+ "] %3d%% %-10s (%s)" % [int(alertness_value * 100), state_str, cooldown_status_text]
 		print("Alertness: ", bar)
+
+func _process(_delta: float) -> void: # Renamed delta to _delta to address unused parameter warning
+	# Update status bar position
+	if is_instance_valid(status_bar_instance):
+		var status_bar_pos: Vector2 = Vector2.ZERO
+
+		# Center the status bar horizontally above the sprite
+		# Assumes status_bar_instance's origin is top-left
+		status_bar_pos.x = -status_bar_instance.size.x / 2.0
+
+		# Position below the emote
+		# This part requires knowing how your emote_node is structured and positioned.
+		# Assuming emote_node.position.y is relative to the sentry,
+		# and emote_node has a known height (e.g., from its texture or a bounding box).
+		if is_instance_valid(emote_node) and emote_node.visible:
+			# Assuming emote_node's Y position is its top, and it has a 'size' property (like Control nodes)
+			# or a way to get its height.
+			var emote_height: float = 0.0
+			if emote_node.has_method("get_rect"): # For Control nodes
+				emote_height = emote_node.get_rect().size.y * emote_node.scale.y
+			elif emote_node is Sprite2D and emote_node.texture:
+				emote_height = emote_node.texture.get_height() * emote_node.scale.y
+			# Add other checks if emote_node is a different type
+
+			# emote_node.position.y is where the emote's origin is.
+			# If emote is above sentry, emote_node.position.y is negative.
+			# The bottom of the emote would be emote_node.position.y + emote_height (if origin is top-left)
+			# OR emote_node.position.y if origin is bottom-left and position.y is the bottom line.
+			# Let's assume emote_node.position.y is the TOP of the emote relative to sentry.
+			var emote_bottom_y: float = emote_node.position.y + emote_height
+			status_bar_pos.y = emote_bottom_y + PADDING_BELOW_EMOTE
+		elif is_instance_valid(animated_sprite_2d_ref_for_status_bar): # Fallback if emote_node is not valid/visible
+			# Fallback: Position above the sprite if emote is not available
+			# Assuming sprite's origin is its center, and sprite.texture gives its height.
+			var sprite_top_y: float = 0.0
+			if animated_sprite_2d_ref_for_status_bar.sprite_frames and animated_sprite_2d_ref_for_status_bar.animation:
+				var current_anim_name: StringName = animated_sprite_2d_ref_for_status_bar.animation
+				if animated_sprite_2d_ref_for_status_bar.sprite_frames.has_animation(current_anim_name):
+					var frame_texture: Texture2D = animated_sprite_2d_ref_for_status_bar.sprite_frames.get_frame_texture(current_anim_name, animated_sprite_2d_ref_for_status_bar.frame)
+					if frame_texture:
+						sprite_top_y = -frame_texture.get_height() / 2.0 * animated_sprite_2d_ref_for_status_bar.scale.y
+			status_bar_pos.y = sprite_top_y + STATUS_BAR_Y_OFFSET_FROM_SPRITE_TOP
+
+		status_bar_instance.position = status_bar_pos
