@@ -102,4 +102,3 @@ flip_h = true
 position = Vector2(0, -21)
 cant_see_past_dist = 250.0
 always_see_within_dist = 10.0
-debug_view = true

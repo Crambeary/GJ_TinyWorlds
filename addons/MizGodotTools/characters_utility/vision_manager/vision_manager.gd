@@ -75,7 +75,7 @@ func _draw():
 		points.append(Vector2.ZERO)  # Center point
 		var point_count = max(8, sight_arc / 10)  # Adjust point count based on arc size
 		for i in point_count + 1:
-			var angle = lerp(-half_arc, half_arc, float(i) / point_count)
+			var angle = lerp(-half_arc, half_arc, float(i) / point_count) + PI  # Add 180 degrees (PI radians)
 			points.append(Vector2(cos(angle), sin(angle)) * 15)
 		draw_polygon(points, [Color(1, 1, 1, 0.3)])  # Semi-transparent white
 		return

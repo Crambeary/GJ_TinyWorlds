@@ -21,6 +21,7 @@ config/icon="res://icon.png"
 player=""
 Priest1=""
 Priest2=""
+Sentry1=""
 
 [input]
 
