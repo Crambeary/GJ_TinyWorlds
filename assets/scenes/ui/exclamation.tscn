@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3 uid="uid://cfviq43lg2ihu"]
+
+[ext_resource type="Texture2D" uid="uid://cy87nc7k66ekw" path="res://assets/art/ui/Emoji_Spritesheet_Free.png" id="1_c0c2a"]
+
+[node name="Exclamation" type="Node2D"]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+position = Vector2(0, -16)
+texture = ExtResource("1_c0c2a")
+region_enabled = true
+region_rect = Rect2(64, 224, 32, 32)

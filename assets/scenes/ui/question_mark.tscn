@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3 uid="uid://cr1mfjjmwdlas"]
+
+[ext_resource type="Texture2D" uid="uid://cy87nc7k66ekw" path="res://assets/art/ui/Emoji_Spritesheet_Free.png" id="1_ffeug"]
+
+[node name="QuestionMark" type="Node2D"]
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+position = Vector2(1, -16)
+texture = ExtResource("1_ffeug")
+region_enabled = true
+region_rect = Rect2(96, 224, 32, 32)

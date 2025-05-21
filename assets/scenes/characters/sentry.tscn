@@ -1,8 +1,10 @@
-[gd_scene load_steps=23 format=3 uid="uid://cl4ybl3p53ljw"]
+[gd_scene load_steps=25 format=3 uid="uid://cl4ybl3p53ljw"]
 
 [ext_resource type="Script" uid="uid://cptjrtmqy74b5" path="res://assets/scenes/characters/sentry.gd" id="1_1ae5g"]
 [ext_resource type="PackedScene" uid="uid://c7i2wn723ofv4" path="res://addons/MizGodotTools/characters_utility/vision_manager/vision_manager.tscn" id="1_hkm4p"]
 [ext_resource type="Texture2D" uid="uid://dmwj6kob2ws7o" path="res://assets/art/characters/Prototype_Character.png" id="2_1ae5g"]
+[ext_resource type="PackedScene" uid="uid://cr1mfjjmwdlas" path="res://assets/scenes/ui/question_mark.tscn" id="4_8eq4e"]
+[ext_resource type="PackedScene" uid="uid://cfviq43lg2ihu" path="res://assets/scenes/ui/exclamation.tscn" id="5_g80ai"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_8eq4e"]
 atlas = ExtResource("2_1ae5g")
@@ -171,10 +173,24 @@ speed = 50.0
 position = Vector2(0, -14)
 scale = Vector2(2, 2)
 sprite_frames = SubResource("SpriteFrames_fdnys")
-animation = &"walk_up"
+animation = &"idle_side"
 autoplay = "idle_side"
-frame_progress = 0.245215
+frame_progress = 0.181482
 flip_h = true
 
 [node name="VisionManager" parent="." instance=ExtResource("1_hkm4p")]
 position = Vector2(0, -18)
+cant_see_past_dist = 250.0
+always_see_within_dist = 10.0
+
+[node name="Emotes" type="Node2D" parent="."]
+
+[node name="QuestionMark" parent="Emotes" instance=ExtResource("4_8eq4e")]
+visible = false
+position = Vector2(0, -32)
+scale = Vector2(0.6, 0.6)
+
+[node name="Exclamation" parent="Emotes" instance=ExtResource("5_g80ai")]
+visible = false
+position = Vector2(0, -32)
+scale = Vector2(0.6, 0.6)
