@@ -17,6 +17,11 @@ const PADDING_BELOW_EMOTE: float = 2.0 # Small space between emote and status ba
 
 var status_bar_instance: StatusBar
 
+# Color constants for alertness states
+const IDLE_COLOR := Color.WHITE
+const SUSPICIOUS_COLOR := Color.YELLOW
+const ALERTED_COLOR := Color.RED
+
 @export var path_group_name: String = "Sentry1"
 @onready var waypoints: Array = get_tree().get_first_node_in_group(path_group_name).get_children()
 var current_index: int = 0
@@ -107,14 +112,47 @@ func update_alertness():
 
 
 func update_alert_state(new_state: AlertnessState) -> void:
-	if !new_state:
-		pass
-	if !AlertnessState.find_key(new_state):
-		print("Invalid Alertness State: ", new_state)
-		pass
-	var enum_name = get_enum_name(AlertnessState, new_state)
+	if alertness_state == new_state:
+		return
+	if not AlertnessState.has(new_state): # .has() checks if the enum contains the given value
+		push_error("Invalid new_state passed to update_alert_state: %s" % new_state)
+		return
+	
 	alertness_state = new_state
 	
+	print("Sentry alertness_state changed to: ", AlertnessState.find_key(alertness_state)) # Debug print
+
+	# Update status bar color
+	_update_status_bar_color()
+
+	# Update emote visibility (existing logic)
+	match alertness_state:
+		AlertnessState.IDLE:
+			question_mark.visible = false
+			exclamation.visible = false
+		AlertnessState.SUSPICIOUS:
+			question_mark.visible = true
+			exclamation.visible = false
+		AlertnessState.ALERTED:
+			question_mark.visible = false
+			exclamation.visible = true
+
+# Helper function to update the status bar color based on current alertness_state
+func _update_status_bar_color() -> void:
+	if not is_instance_valid(status_bar_instance):
+		return
+
+	match alertness_state:
+		AlertnessState.IDLE:
+			status_bar_instance.set_fill_color(IDLE_COLOR)
+		AlertnessState.SUSPICIOUS:
+			status_bar_instance.set_fill_color(SUSPICIOUS_COLOR)
+		AlertnessState.ALERTED:
+			status_bar_instance.set_fill_color(ALERTED_COLOR)
+		_:
+			# Fallback, though ideally this case shouldn't be reached if states are managed
+			status_bar_instance.set_fill_color(Color.WHITE)
+
 func _ready() -> void:
 	print("Sentry _ready: Attempting to initialize status bar.") # Debug print
 	if STATUS_BAR_SCENE == null:
@@ -137,6 +175,8 @@ func _ready() -> void:
 		add_child(status_bar_instance)
 		# Initial update for alertness
 		status_bar_instance.update_status(alertness_value, 1.0)
+		# Set initial color
+		_update_status_bar_color()
 	else:
 		# This case should ideally be caught by the null check above
 		push_error("Sentry _ready: STATUS_BAR_SCENE was unexpectedly null after initial check.")
