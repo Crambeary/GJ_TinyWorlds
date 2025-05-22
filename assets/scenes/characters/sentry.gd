@@ -80,23 +80,23 @@ func get_current_waypoint():
 	return waypoints[current_index] as Marker2D
 	
 func handle_waypoint_action(waypoint_node: Node2D) -> void:
-	print_debug("Sentry: Reached waypoint: ", waypoint_node.name)
+	# print_debug("Sentry: Reached waypoint: ", waypoint_node.name) # Temporarily commented for diagnosis
 	# Check if the waypoint_node has a 'wait_time' property directly
 	if waypoint_node.has_meta("wait_time") or "wait_time" in waypoint_node: # Check meta for editor-set, or direct property
 		var wait_duration: float = waypoint_node.get("wait_time") if "wait_time" in waypoint_node else waypoint_node.get_meta("wait_time")
-		print_debug("Sentry: Waypoint ", waypoint_node.name, " has 'wait_time' variable. Duration: ", wait_duration)
+		# print_debug("Sentry: Waypoint ", waypoint_node.name, " has 'wait_time' variable. Duration: ", wait_duration)
 		if wait_duration > 0 and not _has_waited_at_current_waypoint:
 			idle_task_state = IdleTasks.WAIT
 			current_wait_timer = wait_duration
-			print_debug("Sentry: ==> SETTING STATE TO WAIT. Timer: ", current_wait_timer)
+			# print_debug("Sentry: ==> SETTING STATE TO WAIT. Timer: ", current_wait_timer)
 		elif _has_waited_at_current_waypoint:
-			print_debug("Sentry: Waypoint ", waypoint_node.name, " already waited this visit. Resuming patrol.")
+			# print_debug("Sentry: Waypoint ", waypoint_node.name, " already waited this visit. Resuming patrol.")
 			idle_task_state = IdleTasks.PATROL # Ensure patrol state if already waited
 		else: # wait_duration is 0 or less
-			print_debug("Sentry: Waypoint ", waypoint_node.name, " wait_duration is not > 0. Resuming patrol.")
+			# print_debug("Sentry: Waypoint ", waypoint_node.name, " wait_duration is not > 0. Resuming patrol.")
 			idle_task_state = IdleTasks.PATROL
 	else:
-		print_debug("Sentry: Waypoint ", waypoint_node.name, " does NOT have 'wait_time' variable or meta. Resuming patrol.")
+		# print_debug("Sentry: Waypoint ", waypoint_node.name, " does NOT have 'wait_time' variable or meta. Resuming patrol.")
 		# No wait time, or waypoint doesn't support it, continue patrolling
 		idle_task_state = IdleTasks.PATROL
 
@@ -182,7 +182,7 @@ func _process_movement(delta: float) -> void:
 			if idle_task_state != IdleTasks.WAIT:
 				current_index = (current_index + 1) % waypoints.size()
 				_has_waited_at_current_waypoint = false # Reset flag for the new waypoint
-				print_debug("Sentry: Advanced to next waypoint index: ", current_index, ". Reset has_waited flag.")
+				# print_debug("Sentry: Advanced to next waypoint index: ", current_index, ". Reset has_waited flag.")
 	elif idle_task_state == IdleTasks.WAIT:
 		# Standing still, maybe look around or specific idle animation
 		# The actual waiting timer is handled in _process_detection
@@ -219,9 +219,8 @@ func _process_animations() -> void:
 		animated_sprite_2d.play(animation_to_play)
 
 
-func _on_sentry_state_changed(old_state: SentryState, new_state: SentryState) -> void:
-	print("Sentry state: %s -> %s" % [SentryState.find_key(old_state), SentryState.find_key(new_state)])
-
+func _on_sentry_state_changed(_old_state: SentryState, new_state: SentryState) -> void:
+	# print_debug("Sentry state: %s -> %s" % [SentryState.find_key(_old_state), SentryState.find_key(new_state)]) # Temporarily commented for diagnosis
 	match new_state:
 		SentryState.IDLE:
 			question_mark.visible = false
@@ -247,7 +246,7 @@ func _update_layered_status_bar() -> void:
 	if not is_instance_valid(status_bar_instance):
 		printerr("Sentry: status_bar_instance is not valid in _update_layered_status_bar!")
 		return
-	# print_debug("Sentry _update_layered_status_bar: State=", SentryState.find_key(current_sentry_state), " Susp=", suspicion_points, " Alert=", alert_points)
+	# print_debug("Sentry _update_layered_status_bar: Sending to StatusBar: State=", SentryState.find_key(current_sentry_state), " Susp=", suspicion_points, " Alert=", alert_points) # Commented out: Too frequent
 
 	var bar_state_to_pass: StatusBar.BarState
 	match current_sentry_state:
@@ -262,12 +261,12 @@ func _update_layered_status_bar() -> void:
 	status_bar_instance.set_meter_state(bar_state_to_pass, suspicion_points, alert_points)
 
 func _process_detection(delta: float) -> void:
-	# print_debug("Sentry _process_detection: Player visible = ", is_player_currently_visible, ", State = ", SentryState.find_key(current_sentry_state))
+	# print_debug("Sentry _process_detection: Player visible = ", is_player_currently_visible, ", State = ", SentryState.find_key(current_sentry_state)) # General, can be spammy
 
 	var previous_state = current_sentry_state
 
 	if is_player_currently_visible:
-		# print_debug("Sentry _process_detection: Player IS VISIBLE. Susp: ", suspicion_points, " Alert: ", alert_points) # Can be spammy
+		# print_debug("Sentry _process_detection: Player IS VISIBLE. Current Susp: ", suspicion_points, " Alert: ", alert_points, " State: ", SentryState.find_key(current_sentry_state)) # Commented out: Too frequent
 		# Reset cooldown delay timer since player is visible
 		current_cooldown_delay_timer = 0.0
 		detected_linger_timer = -1 # Stop linger timer if player re-sighted
@@ -279,25 +278,20 @@ func _process_detection(delta: float) -> void:
 			# Transition to ALERT
 			if current_sentry_state != SentryState.ALERT and current_sentry_state != SentryState.DETECTED:
 				current_sentry_state = SentryState.ALERT
-				print_debug("Sentry: STATE CHANGE -> ALERT (Suspicion full, alert building/full)")
 			# If alert points are full, transition to DETECTED
 			if alert_points >= MAX_METER_POINTS:
 				if current_sentry_state != SentryState.DETECTED:
 					current_sentry_state = SentryState.DETECTED
-					print_debug("Sentry: STATE CHANGE -> DETECTED (Points full)")
-					# player_fully_detected.emit(self) # Signal already emitted in _on_sentry_state_changed
 		# If not yet alert, check for SUSPICIOUS state
 		elif suspicion_points > 0:
 			if current_sentry_state == SentryState.IDLE:
 				current_sentry_state = SentryState.SUSPICIOUS
-				print_debug("Sentry: STATE CHANGE -> SUSPICIOUS (Suspicion > 0)")
 	else: # Player is NOT visible
 		# print_debug("Sentry _process_detection: Player NOT VISIBLE.")
 		# Handle DETECTED linger state first
 		if current_sentry_state == SentryState.DETECTED:
 			if detected_linger_timer < detected_linger_duration:
 				detected_linger_timer += delta
-				print_debug("Sentry: DETECTED linger. Timer: ", detected_linger_timer)
 			else:
 				# Transition from DETECTED to ALERT (cooldown part 1)
 				current_sentry_state = SentryState.ALERT
@@ -305,12 +299,10 @@ func _process_detection(delta: float) -> void:
 				suspicion_points = MAX_METER_POINTS # Keep suspicion bar full
 				alert_after_detected_timer = 0.0 # Start the 30s ALERT timer
 				is_in_alert_after_detected_cooldown = true
-				print_debug("Sentry: DETECTED linger ENDED. STATE CHANGE -> ALERT (Cooldown Stage 1)")
 		# Handle ALERT state (specifically the 30s cooldown after DETECTED)
 		elif current_sentry_state == SentryState.ALERT and is_in_alert_after_detected_cooldown:
 			if alert_after_detected_timer < ALERT_DURATION_AFTER_DETECTED:
 				alert_after_detected_timer += delta
-				print_debug("Sentry: ALERT (after detected) cooldown. Timer: ", alert_after_detected_timer)
 				alert_points = MAX_METER_POINTS # Keep full during this phase
 				suspicion_points = MAX_METER_POINTS
 			else:
@@ -319,7 +311,6 @@ func _process_detection(delta: float) -> void:
 				suspicion_points = 0
 				alert_points = 0
 				is_in_alert_after_detected_cooldown = false
-				print_debug("Sentry: ALERT (after detected) cooldown ENDED. STATE CHANGE -> IDLE")
 		# Handle normal cooldown (not from detected linger)
 		elif current_sentry_state == SentryState.ALERT:
 			current_cooldown_delay_timer += delta
@@ -327,21 +318,18 @@ func _process_detection(delta: float) -> void:
 				alert_points = max(0, alert_points - alert_decay_rate * delta)
 				if alert_points == 0 and current_sentry_state == SentryState.ALERT:
 					current_sentry_state = SentryState.SUSPICIOUS # Drop to suspicious
-					print_debug("Sentry: Normal Cooldown. STATE CHANGE -> SUSPICIOUS (Alert points depleted)")
 				# Decay suspicion points only if not in ALERT or if alert points are zero
 				# (Suspicion bar stays full during ALERT until alert points deplete)
 				if current_sentry_state == SentryState.SUSPICIOUS:
 					suspicion_points = max(0, suspicion_points - suspicion_decay_rate * delta)
 					if suspicion_points == 0:
 						current_sentry_state = SentryState.IDLE
-						print_debug("Sentry: Normal Cooldown. STATE CHANGE -> IDLE (Suspicion points depleted)")
 		elif current_sentry_state == SentryState.SUSPICIOUS:
 			current_cooldown_delay_timer += delta
 			if current_cooldown_delay_timer >= cooldown_start_delay:
 				suspicion_points = max(0, suspicion_points - suspicion_decay_rate * delta)
 				if suspicion_points == 0:
 					current_sentry_state = SentryState.IDLE
-					print_debug("Sentry: Normal Cooldown. STATE CHANGE -> IDLE (Suspicion points depleted)")
 		elif current_sentry_state == SentryState.IDLE:
 			suspicion_points = 0
 			alert_points = 0
@@ -353,25 +341,19 @@ func _process_detection(delta: float) -> void:
 	# If state changed, call the handler
 	if previous_state != current_sentry_state:
 		_on_sentry_state_changed(previous_state, current_sentry_state)
-	else:
-		# If state hasn't changed, but points might have, still update bar
-		# This is important for continuous updates while player is visible
-		_update_layered_status_bar()
 
 	# Handle Idle Task Timers (like waypoint waiting)
-	if idle_task_state == IdleTasks.WAIT and current_wait_timer > 0:
+	if idle_task_state == IdleTasks.WAIT:
 		current_wait_timer -= delta
 		# print_debug("Sentry: Waiting at waypoint. Timer: ", current_wait_timer) # Can be too spammy
 		if current_wait_timer <= 0:
 			idle_task_state = IdleTasks.PATROL # Resume patrol
 			current_wait_timer = 0
 			_has_waited_at_current_waypoint = true # Mark that we've waited at this waypoint for this visit
-			print_debug("Sentry: ==> Wait timer FINISHED at waypoint. Resuming patrol. Has waited flag SET.")
+			# print_debug("Sentry: ==> Wait timer FINISHED at waypoint. Resuming patrol. Has waited flag SET.")
 		else:
 			# print_debug("Sentry: Still waiting at waypoint. Skipping detection/cooldown.") # Also spammy
 			return # Still waiting, skip other detection/cooldown logic for this frame
-
-	_update_layered_status_bar()
 
 func _update_status_bar_positioning() -> void:
 	if not is_instance_valid(status_bar_instance) or not is_instance_valid(animated_sprite_2d_ref_for_status_bar):
@@ -407,15 +389,11 @@ func _update_status_bar_positioning() -> void:
 
 # --- Player Visibility Update --- 
 # This function should be called by your VisionManager or detection system
-func set_player_visibility(p_is_visible: bool) -> void:
-	print("Sentry: set_player_visibility called with: ", p_is_visible, ". Current visibility: ", is_player_currently_visible)
-	if is_player_currently_visible == p_is_visible:
-		return # No change
+func set_player_visibility(p_is_player_seen: bool) -> void: # Renamed parameter
+	is_player_currently_visible = p_is_player_seen # Use renamed parameter
+	# print_debug("Sentry: set_player_visibility called with: ", p_is_player_seen, ". Current state: ", SentryState.find_key(current_sentry_state)) # Temporarily commented for diagnosis
 
-	is_player_currently_visible = p_is_visible
-	# print("Player visibility changed to: ", is_player_currently_visible) # Original print, can be re-enabled if needed
-
-	if not p_is_visible:
+	if not p_is_player_seen: # Use renamed parameter
 		# Player just lost from sight, reset general cooldown delay timer to start counting now
 		# Specific timers like detected_linger_timer are handled in _process_detection
 		current_cooldown_delay_timer = 0.0
@@ -431,3 +409,10 @@ func set_player_visibility(p_is_visible: bool) -> void:
 		alert_after_detected_timer = 0.0
 		# If was in special alert cooldown, player being seen cancels it.
 		is_in_alert_after_detected_cooldown = false 
+
+# --- VisionManager Callbacks (if VisionManager uses signals instead of direct calls) ---
+# func _on_vision_manager_target_sighted(target: Node2D) -> void:
+# 	set_player_visibility(true)
+#
+# func _on_vision_manager_target_lost_sight(target: Node2D) -> void:
+# 	set_player_visibility(false)

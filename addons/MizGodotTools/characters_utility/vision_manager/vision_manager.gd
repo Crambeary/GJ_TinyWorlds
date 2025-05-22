@@ -28,11 +28,11 @@ func _ready() -> void:
 
 	# Try to auto-assign target_node if not already set in editor
 	if not is_instance_valid(target_node):
-		print_debug("VisionManager: 'target_node' not assigned in editor. Attempting to find node in group 'player'.")
+		# print_debug("VisionManager: 'target_node' not assigned in editor. Attempting to find node in group 'player'.") # Commented out
 		var players_in_scene = get_tree().get_nodes_in_group("player")
 		if not players_in_scene.is_empty():
 			target_node = players_in_scene[0] # Assign the first player found
-			print_debug("VisionManager: Automatically assigned 'target_node' to: ", target_node.name)
+			# print_debug("VisionManager: Automatically assigned 'target_node' to: ", target_node.name) # Commented out
 		else:
 			push_warning("VisionManager: 'target_node' not assigned and no node found in group 'player'. Vision checks will not occur.")
 	elif not is_instance_valid(target_node):
@@ -44,7 +44,7 @@ func _physics_process(_delta: float) -> void:
 		# If target was visible but now is invalid (e.g., freed)
 		if _is_target_currently_visible:
 			_is_target_currently_visible = false
-			print("VisionManager: Target became invalid, was visible. Informing Sentry.")
+			# print("VisionManager: Target became invalid, was visible. Informing Sentry.")
 			if is_instance_valid(sentry_character) and sentry_character.has_method("set_player_visibility"):
 				sentry_character.set_player_visibility(false)
 			emit_signal("target_lost_sight", null) # Pass null or a placeholder if target_node is gone
@@ -54,16 +54,16 @@ func _physics_process(_delta: float) -> void:
 
 	if can_see_now and not _is_target_currently_visible:
 		_is_target_currently_visible = true
-		print("VisionManager: Target SIGHTED. Informing Sentry.")
+		# print("VisionManager: Target SIGHTED. Informing Sentry.")
 		if is_instance_valid(sentry_character) and sentry_character.has_method("set_player_visibility"):
-			print("VisionManager: Calling sentry.set_player_visibility(true)")
+			# print("VisionManager: Calling sentry.set_player_visibility(true)")
 			sentry_character.set_player_visibility(true)
 		emit_signal("target_sighted", target_node)
 	elif not can_see_now and _is_target_currently_visible:
 		_is_target_currently_visible = false
-		print("VisionManager: Target LOST. Informing Sentry.")
+		# print("VisionManager: Target LOST. Informing Sentry.")
 		if is_instance_valid(sentry_character) and sentry_character.has_method("set_player_visibility"):
-			print("VisionManager: Calling sentry.set_player_visibility(false)")
+			# print("VisionManager: Calling sentry.set_player_visibility(false)")
 			sentry_character.set_player_visibility(false)
 		emit_signal("target_lost_sight", target_node)
 

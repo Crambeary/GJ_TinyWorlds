@@ -36,6 +36,7 @@ func _ready() -> void:
 
 ## Sets the overall state of the status bar, updating visuals accordingly.
 func set_meter_state(state: BarState, current_suspicion_value: float, current_alert_value: float) -> void:
+	# print_debug("StatusBar RECEIVED: State=", BarState.find_key(state), " Susp=", current_suspicion_value, " Alert=", current_alert_value) # Commented out: Too frequent
 	if not (is_instance_valid(suspicion_bar) and is_instance_valid(alert_bar)):
 		push_warning("StatusBar: Bars not ready for set_meter_state.")
 		return
