@@ -1,10 +1,11 @@
-[gd_scene load_steps=106 format=3 uid="uid://b0blgbxf1vgsh"]
+[gd_scene load_steps=107 format=3 uid="uid://b0blgbxf1vgsh"]
 
 [ext_resource type="Texture2D" uid="uid://nsh6yphxopl1" path="res://assets/art/characters/DG_Asha/Blue Asha Idle 32x32.png" id="1_1afkf"]
 [ext_resource type="Script" uid="uid://dufdfer22yehx" path="res://addons/MizGodotTools/example_scenes/top_down_player_example/top_down_player.gd" id="1_03h60"]
 [ext_resource type="Texture2D" uid="uid://cffijjv6wr1ag" path="res://assets/art/characters/DG_Asha/Blue Asha Run 32x32.png" id="2_o6put"]
 [ext_resource type="PackedScene" uid="uid://c2vvxd4ikbac6" path="res://addons/MizGodotTools/input/top_down_input.tscn" id="2_rtle4"]
 [ext_resource type="Texture2D" uid="uid://cr54863ynmhv7" path="res://assets/art/characters/DG_Asha/Blue Asha Walk 32x32.png" id="3_rtle4"]
+[ext_resource type="Script" uid="uid://baawngol8cord" path="res://assets/scenes/characters/player_detection_handler.gd" id="4_nrtg8"]
 [ext_resource type="PackedScene" uid="uid://drgy5ywjdpjnl" path="res://addons/MizGodotTools/characters_utility/top_down_character_mover/top_down_character_mover.tscn" id="4_o6put"]
 [ext_resource type="Script" uid="uid://b1ckqjcr6vftk" path="res://assets/scenes/characters/top_down_player_animation.gd" id="7_6uukj"]
 
@@ -770,3 +771,6 @@ script = ExtResource("7_6uukj")
 
 [node name="Camera2D" type="Camera2D" parent="."]
 zoom = Vector2(2, 2)
+
+[node name="PlayerDetectionHandler" type="Node2D" parent="."]
+script = ExtResource("4_nrtg8")

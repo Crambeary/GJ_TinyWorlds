@@ -1,5 +1,9 @@
 extends Node2D
 
+# Signals for player detection system
+signal player_detected(detector, detection_level)
+signal player_detection_lost(detector)
+
 var player: Node2D
 @onready var vision_manager: VisionManager = $VisionManager
 @onready var animated_sprite_2d: AnimatedSprite2D = $AnimatedSprite2D
@@ -65,6 +69,7 @@ const SUSPICIOUS_THRESHOLD: float = 0.3 # Example: 30% alertness to become suspi
 var cooldown_timer: float = 0.0
 var is_in_cooldown: bool = false
 var was_player_seen: bool = false
+var was_previously_seen: bool = false  # For tracking when player first leaves sight
 
 @export var speed: float = 10.0
 
@@ -229,6 +234,9 @@ func _physics_process(delta: float) -> void:
 		var active_cooldown_rate: float = idle_cooldown_rate
 
 		# Handle alertness changes based on player visibility and state
+		# Track previous seen state for detection events
+		was_previously_seen = player_in_sight
+		
 		if player_in_sight:
 			# Stop cooldown if player is seen
 			is_in_cooldown = false
@@ -240,7 +248,15 @@ func _physics_process(delta: float) -> void:
 			else:
 				alertness_value = min(alertness_value + (alertness_increase_rate * delta), 1.0)
 			
+			# Emit the player detected signal with the current alertness level
+			emit_signal("player_detected", self, alertness_value)
+			
 		else: # Player not in sight
+			# If player was just seen but now isn't, emit the lost detection signal
+			if was_player_seen and was_previously_seen:
+				emit_signal("player_detection_lost", self)
+				was_previously_seen = false
+				
 			# If we've seen the player before and now don't see them, start cooldown timer
 			if was_player_seen and !is_in_cooldown:
 				cooldown_timer += delta
@@ -269,6 +285,8 @@ func _physics_process(delta: float) -> void:
 					alertness_value = 0.0
 					was_player_seen = false
 					is_in_cooldown = false
+					# Explicitly signal player_detection_lost when alertness drops to zero
+					emit_signal("player_detection_lost", self)
 		
 		# Update state based on alertness value changes from player interaction
 		update_alertness()

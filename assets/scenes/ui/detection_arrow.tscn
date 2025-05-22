@@ -1,0 +1,23 @@
+[gd_scene load_steps=3 format=3 uid="uid://c8jlnc3p01qkw"]
+
+[ext_resource type="Script" path="res://assets/scenes/ui/detection_arrow.gd" id="1_e0k3k"]
+
+[sub_resource type="Gradient" id="Gradient_kvo3g"]
+colors = PackedColorArray(1, 0, 0, 1, 0.8, 0, 0, 0.588235)
+
+[node name="DetectionArrow" type="Node2D"]
+script = ExtResource("1_e0k3k")
+
+[node name="ArrowLine" type="Line2D" parent="."]
+position = Vector2(0, 0)
+points = PackedVector2Array(0, 0, 30, 0)
+width = 3.0
+gradient = SubResource("Gradient_kvo3g")
+begin_cap_mode = 2
+end_cap_mode = 2
+
+[node name="ArrowHead" type="Polygon2D" parent="."]
+position = Vector2(30, 0)
+rotation = 1.5708
+color = Color(1, 0, 0, 1)
+polygon = PackedVector2Array(0, 6, -6, -6, 6, -6)
