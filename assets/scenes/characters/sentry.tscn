@@ -165,7 +165,7 @@ animations = [{
 "speed": 5.0
 }]
 
-[node name="Sentry" type="Node2D"]
+[node name="Sentry" type="Node2D" groups=["sentry"]]
 script = ExtResource("1_1ae5g")
 speed = 50.0
 
