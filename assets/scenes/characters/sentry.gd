@@ -1,8 +1,9 @@
 extends Node2D
 
 # Signals for player detection system
-signal player_detected(detector, detection_level)
-signal player_detection_lost(detector)
+# signal player_detected(detector, detection_level) # Existing, commented out as new system doesn't emit yet (ID: 27ee0f31-4da0-4d7c-8d46-5e6f9fd1a8b8)
+# signal player_detection_lost(detector) # Existing, commented out as new system doesn't emit yet (ID: 491641b9-3ee0-4761-9913-083f3b17a209)
+signal player_fully_detected(sentry_node) # New signal for when DETECTED state is reached
 
 var player: Node2D
 @onready var vision_manager: VisionManager = $VisionManager
@@ -10,69 +11,63 @@ var player: Node2D
 @onready var question_mark: Node2D = $Emotes/QuestionMark
 @onready var exclamation: Node2D = $Emotes/Exclamation
 @onready var emote_node: Node2D = $Emotes
-@onready var animated_sprite_2d_ref_for_status_bar: AnimatedSprite2D = $AnimatedSprite2D # Explicit reference for clarity
+@onready var animated_sprite_2d_ref_for_status_bar: AnimatedSprite2D = $AnimatedSprite2D
 
-# Preload the status bar scene. Ensure this path is correct.
+# Preload the status bar scene.
 const STATUS_BAR_SCENE: PackedScene = preload("res://assets/scenes/ui/status_bar.tscn")
-
-# CONFIGURATION for status bar positioning
-const STATUS_BAR_Y_OFFSET_FROM_SPRITE_TOP: float = -10.0 # Negative to go upwards from origin
-const PADDING_BELOW_EMOTE: float = 2.0 # Small space between emote and status bar
-
 var status_bar_instance: StatusBar
 
-# Color constants for alertness states
-const IDLE_COLOR := Color.WHITE
-const SUSPICIOUS_COLOR := Color.YELLOW
-const ALERTED_COLOR := Color.RED
+# CONFIGURATION for status bar positioning
+const STATUS_BAR_Y_OFFSET_FROM_SPRITE_TOP: float = -10.0
+const PADDING_BELOW_EMOTE: float = 2.0
 
+# --- NEW Alertness System Variables ---
+enum SentryState { IDLE, SUSPICIOUS, ALERT, DETECTED }
+@export var current_sentry_state: SentryState = SentryState.IDLE:
+	set(new_state):
+		if current_sentry_state != new_state:
+			var old_state = current_sentry_state
+			current_sentry_state = new_state
+			_on_sentry_state_changed(old_state, new_state)
+
+var suspicion_points: float = 0.0
+var alert_points: float = 0.0
+const MAX_METER_POINTS: float = 100.0
+
+@export var suspicion_increase_rate: float = 25.0 # Points per second
+@export var alert_increase_rate: float = 33.33    # Points per second
+
+# --- Cooldowns --- 
+@export var alert_decay_rate: float = 20.0
+@export var suspicion_decay_rate: float = 10.0
+@export var cooldown_start_delay: float = 2.0 # General delay before normal decay (SUSPICIOUS, ALERT)
+var current_cooldown_delay_timer: float = 0.0
+
+# DETECTED State Specific Cooldown
+@export var detected_linger_duration: float = 5.0 # Seconds to stay in DETECTED after losing sight
+var detected_linger_timer: float = 0.0
+
+const ALERT_DURATION_AFTER_DETECTED: float = 30.0 # Fixed 30 seconds
+var alert_after_detected_timer: float = 0.0
+var is_in_alert_after_detected_cooldown: bool = false
+
+var is_player_currently_visible: bool = false # This should be updated by VisionManager
+
+# --- Pathing and Movement (largely from original) ---
 @export var path_group_name: String = "Sentry1"
-@onready var waypoints: Array = get_tree().get_first_node_in_group(path_group_name).get_children()
+@onready var waypoints: Array = [] # Initialize empty, fill in _ready
 var current_index: int = 0
 var dir: Vector2
-enum IdleTasks {PATROL, WAIT, INSPECT, RETURN}
-enum AlertnessState {IDLE, SUSPICIOUS, ALERTED}
-@export var idle_task = IdleTasks.PATROL
-@export var alertness_state = AlertnessState.IDLE
-# Alertness ranges from 0.0 (completely calm) to 1.0 (fully alerted)
-@export_range(0.0, 1.0, 0.01) var alertness_value: float = 0.0:
-	set(value):
-		var new_value = clampf(value, 0.0, 1.0)
-		if alertness_value == new_value:
-			return
-		alertness_value = new_value
-		# Update debug print for alertness
-		# print_alertness_bar()
-		# Potentially change state based on new alertness
-		# check_alertness_thresholds()
-		if is_instance_valid(status_bar_instance):
-			status_bar_instance.update_status(alertness_value, 1.0) # Max is 1.0 for alertness
 
-# Thresholds as percentages (0.0-1.0)
-const SUSPICIOUS_THRESHOLD: float = 0.3 # Example: 30% alertness to become suspicious
-@export_range(0.0, 1.0, 0.05) var suspicion_threshold: float = 0.3
-@export_range(0.0, 1.0, 0.05) var alertness_threshold: float = 0.7
-
-# Rate of change per second
-@export var initial_alertness_increase_rate: float = 0.2  # Slow initial increase
-@export var alertness_increase_rate: float = 0.5          # Faster increase once suspicious/alerted
-
-# Cooldown for returning to IDLE (e.g., from ALERTED or brief sightings)
-@export var idle_cooldown_delay: float = 2.0              # Seconds before idle cooldown starts
-@export var idle_cooldown_rate: float = 0.1               # Rate of idle cooldown after delay
-
-# Cooldown specific to SUSPICIOUS state
-@export var suspicious_cooldown_delay: float = 5.0        # Seconds before suspicious cooldown starts
-@export var suspicious_cooldown_rate: float = 0.05        # Rate of suspicious cooldown after delay (slower)
-
-# Internal state
-var cooldown_timer: float = 0.0
-var is_in_cooldown: bool = false
-var was_player_seen: bool = false
-var was_previously_seen: bool = false  # For tracking when player first leaves sight
+# Assuming IdleTasks is still relevant for patrol/wait logic not directly tied to alertness bar
+enum IdleTasks {PATROL, WAIT, INSPECT, RETURN_TO_PATROL} 
+@export var idle_task_state = IdleTasks.PATROL
+var current_wait_timer: float = 0.0
+var _has_waited_at_current_waypoint: bool = false # Flag to ensure wait happens once per visit
 
 @export var speed: float = 10.0
 
+# --- Helper Functions (largely from original) ---
 func get_enum_name(enum_dict: Dictionary, value: int) -> String:
 	for name in enum_dict.keys():
 		if enum_dict[name] == value:
@@ -80,278 +75,359 @@ func get_enum_name(enum_dict: Dictionary, value: int) -> String:
 	return "Unknown"
 
 func get_current_waypoint():
+	if waypoints.is_empty() or current_index < 0 or current_index >= waypoints.size():
+		return null
 	return waypoints[current_index] as Marker2D
 	
-func handle_waypoint_action(wp):
-	match wp.action:
-		"wait":
-			idle_task = IdleTasks.WAIT
-			await get_tree().create_timer(wp.wait_time, false).timeout
-			idle_task = IdleTasks.PATROL
-		_:
-			pass
-	
-func set_vision_direction(direction: Vector2) -> void:
-	direction = direction * -1 # Invert Vector2 Values
-	vision_manager.rotation = direction.angle()
-	
-func update_alertness():
-	if alertness_value < suspicion_threshold \
-	and alertness_state != AlertnessState.IDLE:
-		update_alert_state(AlertnessState.IDLE)
-		idle_task = IdleTasks.PATROL
-		question_mark.visible = false
-		exclamation.visible = false
-	elif alertness_value >= suspicion_threshold \
-	and alertness_value < alertness_threshold \
-	and alertness_state != AlertnessState.SUSPICIOUS:
-		update_alert_state(AlertnessState.SUSPICIOUS)
-		idle_task = IdleTasks.WAIT
-		question_mark.visible = true
-		exclamation.visible = false
-	elif alertness_value >= alertness_threshold \
-	and alertness_state != AlertnessState.ALERTED:
-		update_alert_state(AlertnessState.ALERTED)
-		question_mark.visible = false
-		exclamation.visible = true
+func handle_waypoint_action(waypoint_node: Node2D) -> void:
+	print_debug("Sentry: Reached waypoint: ", waypoint_node.name)
+	# Check if the waypoint_node has a 'wait_time' property directly
+	if waypoint_node.has_meta("wait_time") or "wait_time" in waypoint_node: # Check meta for editor-set, or direct property
+		var wait_duration: float = waypoint_node.get("wait_time") if "wait_time" in waypoint_node else waypoint_node.get_meta("wait_time")
+		print_debug("Sentry: Waypoint ", waypoint_node.name, " has 'wait_time' variable. Duration: ", wait_duration)
+		if wait_duration > 0 and not _has_waited_at_current_waypoint:
+			idle_task_state = IdleTasks.WAIT
+			current_wait_timer = wait_duration
+			print_debug("Sentry: ==> SETTING STATE TO WAIT. Timer: ", current_wait_timer)
+		elif _has_waited_at_current_waypoint:
+			print_debug("Sentry: Waypoint ", waypoint_node.name, " already waited this visit. Resuming patrol.")
+			idle_task_state = IdleTasks.PATROL # Ensure patrol state if already waited
+		else: # wait_duration is 0 or less
+			print_debug("Sentry: Waypoint ", waypoint_node.name, " wait_duration is not > 0. Resuming patrol.")
+			idle_task_state = IdleTasks.PATROL
+	else:
+		print_debug("Sentry: Waypoint ", waypoint_node.name, " does NOT have 'wait_time' variable or meta. Resuming patrol.")
+		# No wait time, or waypoint doesn't support it, continue patrolling
+		idle_task_state = IdleTasks.PATROL
 
-
-func update_alert_state(new_state: AlertnessState) -> void:
-	if alertness_state == new_state:
-		return
-	if not AlertnessState.has(new_state): # .has() checks if the enum contains the given value
-		push_error("Invalid new_state passed to update_alert_state: %s" % new_state)
-		return
-	
-	alertness_state = new_state
-	
-	print("Sentry alertness_state changed to: ", AlertnessState.find_key(alertness_state)) # Debug print
-
-	# Update status bar color
-	_update_status_bar_color()
-
-	# Update emote visibility (existing logic)
-	match alertness_state:
-		AlertnessState.IDLE:
-			question_mark.visible = false
-			exclamation.visible = false
-		AlertnessState.SUSPICIOUS:
-			question_mark.visible = true
-			exclamation.visible = false
-		AlertnessState.ALERTED:
-			question_mark.visible = false
-			exclamation.visible = true
-
-# Helper function to update the status bar color based on current alertness_state
-func _update_status_bar_color() -> void:
-	if not is_instance_valid(status_bar_instance):
-		return
-
-	match alertness_state:
-		AlertnessState.IDLE:
-			status_bar_instance.set_fill_color(IDLE_COLOR)
-		AlertnessState.SUSPICIOUS:
-			status_bar_instance.set_fill_color(SUSPICIOUS_COLOR)
-		AlertnessState.ALERTED:
-			status_bar_instance.set_fill_color(ALERTED_COLOR)
-		_:
-			# Fallback, though ideally this case shouldn't be reached if states are managed
-			status_bar_instance.set_fill_color(Color.WHITE)
-
+# --- Core Logic --- 
 func _ready() -> void:
-	print("Sentry _ready: Attempting to initialize status bar.") # Debug print
-	if STATUS_BAR_SCENE == null:
-		push_error("Sentry _ready: STATUS_BAR_SCENE is null! Preload failed.")
-		return # Stop further execution if preload failed
-	else:
-		print("Sentry _ready: STATUS_BAR_SCENE loaded successfully.")
-	
-	player = get_tree().get_first_node_in_group("player")
-
-	# Instantiate and add the status bar
-	if STATUS_BAR_SCENE:
-		status_bar_instance = STATUS_BAR_SCENE.instantiate() as StatusBar # Cast to StatusBar
-		if status_bar_instance == null:
-			push_error("Sentry _ready: Failed to instantiate STATUS_BAR_SCENE! status_bar_instance is null.")
-			# return # Stop if instantiation failed - let's allow it to continue for now to see other errors if any
+	var path_nodes = get_tree().get_nodes_in_group(path_group_name)
+	if not path_nodes.is_empty():
+		# Assuming the first node is the parent path, and its children are waypoints
+		# Adjust if your path structure is different
+		if path_nodes[0].get_child_count() > 0:
+			waypoints = path_nodes[0].get_children()
 		else:
-			print("Sentry _ready: status_bar_instance created successfully: ", status_bar_instance)
-		
-		add_child(status_bar_instance)
-		# Initial update for alertness
-		status_bar_instance.update_status(alertness_value, 1.0)
-		# Set initial color
-		_update_status_bar_color()
+			push_warning("Sentry: Path group '%s' found, but no waypoints (children) under the first node." % path_group_name)
 	else:
-		# This case should ideally be caught by the null check above
-		push_error("Sentry _ready: STATUS_BAR_SCENE was unexpectedly null after initial check.")
+		push_warning("Sentry: Path group '%s' not found or empty." % path_group_name)
+
+	player = get_tree().get_first_node_in_group("player")
+	if not is_instance_valid(player):
+		push_error("Sentry: Player node not found in group 'player'!")
+
+	if STATUS_BAR_SCENE:
+		status_bar_instance = STATUS_BAR_SCENE.instantiate() as StatusBar
+		if status_bar_instance:
+			add_child(status_bar_instance)
+			# Initial state setup for status bar via current_sentry_state setter
+			current_sentry_state = SentryState.IDLE # Trigger setter for initial UI update
+			suspicion_points = 0
+			alert_points = 0
+			_update_layered_status_bar() # Explicit call to ensure it's set up
+		else:
+			push_error("Sentry: Failed to instantiate STATUS_BAR_SCENE!")
+	else:
+		push_error("Sentry: STATUS_BAR_SCENE is null! Preload likely failed.")
+
+	# Connect VisionManager signals here if they exist
+	# Example: vision_manager.player_visibility_changed.connect(_on_player_visibility_changed)
 
 func _physics_process(delta: float) -> void:
-	var target = get_current_waypoint().global_position
-	dir = (target - global_position).normalized()
-	if idle_task == IdleTasks.WAIT:
-		if dir.x <= -0.5:
-			animated_sprite_2d.flip_h = true
-			animated_sprite_2d.play("idle_side")
-		elif dir.x >= 0.5:
-			animated_sprite_2d.flip_h = false
-			animated_sprite_2d.play("idle_side")
-		if dir.y >= 0.5:
-			animated_sprite_2d.play("idle_down")
-		elif dir.y <= -0.5:
-			animated_sprite_2d.play("idle_up")
-			
-	if idle_task == IdleTasks.PATROL:
-		if dir.x <= -0.5:
-			animated_sprite_2d.flip_h = true
-			animated_sprite_2d.play("walk_side")
-		elif dir.x >= 0.5:
-			animated_sprite_2d.flip_h = false
-			animated_sprite_2d.play("walk_side")
-		if dir.y >= 0.5:
-			animated_sprite_2d.play("walk_down")
-		elif dir.y <= -0.5:
-			animated_sprite_2d.play("walk_up")
-		
-		set_vision_direction(dir)
-		position += dir * speed * delta
-	
-		if global_position.distance_to(target) < 1:
-			var wp = get_current_waypoint()
-			if wp.wait_time > 0.0:
-				await handle_waypoint_action(wp)
-			current_index = (current_index + 1) % waypoints.size()
-	
-	update_alertness() # Initial update based on patrol/wait
-	
-	if player:
-		var player_global_pos: Vector2 = player.global_position
-		var player_in_sight = vision_manager.can_see_point(player_global_pos)
-		was_player_seen = was_player_seen or player_in_sight
+	_process_detection(delta) # Handle alertness logic
+	_process_movement(delta)   # Handle movement logic
+	_process_animations()      # Handle animation updates
 
-		# These will store the currently applicable delay/rate for logic and debug output
-		var active_cooldown_delay: float = idle_cooldown_delay
-		var active_cooldown_rate: float = idle_cooldown_rate
+func _process(_delta: float) -> void:
+	_update_status_bar_positioning()
 
-		# Handle alertness changes based on player visibility and state
-		# Track previous seen state for detection events
-		was_previously_seen = player_in_sight
-		
-		if player_in_sight:
-			# Stop cooldown if player is seen
-			is_in_cooldown = false
-			cooldown_timer = 0.0
-			
-			# Different increase rates based on current state
-			if alertness_value < suspicion_threshold:
-				alertness_value = min(alertness_value + (initial_alertness_increase_rate * delta), 1.0)
+func _process_movement(delta: float) -> void:
+	if current_sentry_state == SentryState.DETECTED or current_sentry_state == SentryState.ALERT:
+		# Potentially chase player or move to last known position
+		# For now, let's assume it stops or has specific alert movement
+		if is_instance_valid(player):
+			dir = (player.global_position - global_position).normalized()
+			# Add chase logic or look at player logic here
+		return # Override patrol/idle movement when alert/detected
+
+	if idle_task_state == IdleTasks.PATROL and not waypoints.is_empty():
+		var wp_node = get_current_waypoint()
+		if not is_instance_valid(wp_node):
+			# print_debug("Invalid waypoint, resetting patrol or stopping.")
+			return
+		var target_pos = wp_node.global_position
+		dir = (target_pos - global_position).normalized()
+		global_position += dir * speed * delta
+		if is_instance_valid(vision_manager):
+			# vision_manager.front_direction = dir # This was incorrect as front_direction is an enum
+			# If vision_manager.front_direction is DIRECTIONS.LEFT (meaning -X is forward),
+			# we want -X to align with 'dir'. So, +X should align with 'dir.rotated(PI)'.
+			# The node's rotation sets the orientation of its +X axis.
+			if vision_manager.front_direction == vision_manager.DIRECTIONS.LEFT:
+				vision_manager.rotation = dir.angle() + PI
+			elif vision_manager.front_direction == vision_manager.DIRECTIONS.RIGHT:
+				vision_manager.rotation = dir.angle()
+			elif vision_manager.front_direction == vision_manager.DIRECTIONS.DOWN:
+				vision_manager.rotation = dir.angle() - PI/2 # or +3PI/2
+			elif vision_manager.front_direction == vision_manager.DIRECTIONS.UP:
+				vision_manager.rotation = dir.angle() + PI/2 # or -3PI/2
+			# Fallback or if front_direction is not one of the above, assume it's aligned with how dir.angle() works (like RIGHT)
+			# else: 
+			# vision_manager.rotation = dir.angle() # Default if unsure, might need adjustment
+
+		if global_position.distance_to(target_pos) < 1.0: # Threshold for reaching waypoint
+			handle_waypoint_action(wp_node)
+			# Only advance to the next waypoint if we are not currently set to WAIT
+			if idle_task_state != IdleTasks.WAIT:
+				current_index = (current_index + 1) % waypoints.size()
+				_has_waited_at_current_waypoint = false # Reset flag for the new waypoint
+				print_debug("Sentry: Advanced to next waypoint index: ", current_index, ". Reset has_waited flag.")
+	elif idle_task_state == IdleTasks.WAIT:
+		# Standing still, maybe look around or specific idle animation
+		# The actual waiting timer is handled in _process_detection
+		pass
+	elif idle_task_state == IdleTasks.INSPECT:
+		# Go to a point of interest or look around
+		pass
+
+func _process_animations() -> void:
+	if not is_instance_valid(animated_sprite_2d):
+		return
+	
+	var animation_to_play = "idle_down" # Default
+	var flip = false
+
+	if dir.x < -0.1:
+		flip = true
+		animation_to_play = "walk_side" if idle_task_state == IdleTasks.PATROL else "idle_side"
+	elif dir.x > 0.1:
+		flip = false
+		animation_to_play = "walk_side" if idle_task_state == IdleTasks.PATROL else "idle_side"
+	elif dir.y < -0.1:
+		animation_to_play = "walk_up" if idle_task_state == IdleTasks.PATROL else "idle_up"
+	elif dir.y > 0.1:
+		animation_to_play = "walk_down" if idle_task_state == IdleTasks.PATROL else "idle_down"
+	else: # No significant direction, play idle based on current animation or default
+		if animated_sprite_2d.animation.begins_with("walk"):
+			animation_to_play = animated_sprite_2d.animation.replace("walk", "idle")
+		else:
+			animation_to_play = animated_sprite_2d.animation # Keep current idle if no dir
+
+	animated_sprite_2d.flip_h = flip
+	if animated_sprite_2d.animation != animation_to_play:
+		animated_sprite_2d.play(animation_to_play)
+
+
+func _on_sentry_state_changed(old_state: SentryState, new_state: SentryState) -> void:
+	print("Sentry state: %s -> %s" % [SentryState.find_key(old_state), SentryState.find_key(new_state)])
+
+	match new_state:
+		SentryState.IDLE:
+			question_mark.visible = false
+			exclamation.visible = false
+			idle_task_state = IdleTasks.PATROL
+		SentryState.SUSPICIOUS:
+			question_mark.visible = true
+			exclamation.visible = false
+			# idle_task_state = IdleTasks.INSPECT # Or some other behavior
+		SentryState.ALERT:
+			question_mark.visible = false
+			exclamation.visible = true
+			# idle_task_state = IdleTasks.INSPECT # Or chase behavior starts
+		SentryState.DETECTED:
+			question_mark.visible = false
+			exclamation.visible = true # Could be a different emote for fully detected
+			emit_signal("player_fully_detected", self)
+			# Override movement to chase or engage
+
+	_update_layered_status_bar()
+
+func _update_layered_status_bar() -> void:
+	if not is_instance_valid(status_bar_instance):
+		printerr("Sentry: status_bar_instance is not valid in _update_layered_status_bar!")
+		return
+	# print_debug("Sentry _update_layered_status_bar: State=", SentryState.find_key(current_sentry_state), " Susp=", suspicion_points, " Alert=", alert_points)
+
+	var bar_state_to_pass: StatusBar.BarState
+	match current_sentry_state:
+		SentryState.IDLE: bar_state_to_pass = StatusBar.BarState.IDLE
+		SentryState.SUSPICIOUS: bar_state_to_pass = StatusBar.BarState.SUSPICIOUS
+		SentryState.ALERT: bar_state_to_pass = StatusBar.BarState.ALERT
+		SentryState.DETECTED: bar_state_to_pass = StatusBar.BarState.DETECTED
+		_: 
+			bar_state_to_pass = StatusBar.BarState.IDLE
+			push_error("Sentry: Unknown current_sentry_state in _update_layered_status_bar!")
+	
+	status_bar_instance.set_meter_state(bar_state_to_pass, suspicion_points, alert_points)
+
+func _process_detection(delta: float) -> void:
+	# print_debug("Sentry _process_detection: Player visible = ", is_player_currently_visible, ", State = ", SentryState.find_key(current_sentry_state))
+
+	var previous_state = current_sentry_state
+
+	if is_player_currently_visible:
+		# print_debug("Sentry _process_detection: Player IS VISIBLE. Susp: ", suspicion_points, " Alert: ", alert_points) # Can be spammy
+		# Reset cooldown delay timer since player is visible
+		current_cooldown_delay_timer = 0.0
+		detected_linger_timer = -1 # Stop linger timer if player re-sighted
+		# Increase suspicion points
+		suspicion_points = clampf(suspicion_points + suspicion_increase_rate * delta, 0.0, MAX_METER_POINTS)
+		# If suspicion points are full, increase alert points
+		if suspicion_points >= MAX_METER_POINTS:
+			alert_points = clampf(alert_points + alert_increase_rate * delta, 0.0, MAX_METER_POINTS)
+			# Transition to ALERT
+			if current_sentry_state != SentryState.ALERT and current_sentry_state != SentryState.DETECTED:
+				current_sentry_state = SentryState.ALERT
+				print_debug("Sentry: STATE CHANGE -> ALERT (Suspicion full, alert building/full)")
+			# If alert points are full, transition to DETECTED
+			if alert_points >= MAX_METER_POINTS:
+				if current_sentry_state != SentryState.DETECTED:
+					current_sentry_state = SentryState.DETECTED
+					print_debug("Sentry: STATE CHANGE -> DETECTED (Points full)")
+					# player_fully_detected.emit(self) # Signal already emitted in _on_sentry_state_changed
+		# If not yet alert, check for SUSPICIOUS state
+		elif suspicion_points > 0:
+			if current_sentry_state == SentryState.IDLE:
+				current_sentry_state = SentryState.SUSPICIOUS
+				print_debug("Sentry: STATE CHANGE -> SUSPICIOUS (Suspicion > 0)")
+	else: # Player is NOT visible
+		# print_debug("Sentry _process_detection: Player NOT VISIBLE.")
+		# Handle DETECTED linger state first
+		if current_sentry_state == SentryState.DETECTED:
+			if detected_linger_timer < detected_linger_duration:
+				detected_linger_timer += delta
+				print_debug("Sentry: DETECTED linger. Timer: ", detected_linger_timer)
 			else:
-				alertness_value = min(alertness_value + (alertness_increase_rate * delta), 1.0)
-			
-			# Emit the player detected signal with the current alertness level
-			emit_signal("player_detected", self, alertness_value)
-			
-		else: # Player not in sight
-			# If player was just seen but now isn't, emit the lost detection signal
-			if was_player_seen and was_previously_seen:
-				emit_signal("player_detection_lost", self)
-				was_previously_seen = false
-				
-			# If we've seen the player before and now don't see them, start cooldown timer
-			if was_player_seen and !is_in_cooldown:
-				cooldown_timer += delta
-				
-				# Determine which delay to use
-				if alertness_state == AlertnessState.SUSPICIOUS:
-					active_cooldown_delay = suspicious_cooldown_delay
-				else:
-					active_cooldown_delay = idle_cooldown_delay
-				
-				if cooldown_timer >= active_cooldown_delay:
-					is_in_cooldown = true
-					cooldown_timer = 0.0 # Reset timer as we are now in cooldown
-			
-			# Only decrease alertness if in cooldown mode
-			if is_in_cooldown:
-				# Determine which rate to use
-				if alertness_value >= suspicion_threshold: # If still suspicious or cooling down from alerted
-					active_cooldown_rate = suspicious_cooldown_rate
-				else: # Cooling down below suspicious, towards idle
-					active_cooldown_rate = idle_cooldown_rate
-				
-				alertness_value = max(alertness_value - (active_cooldown_rate * delta), 0.0)
-				
-				if alertness_value <= 0.0:
-					alertness_value = 0.0
-					was_player_seen = false
-					is_in_cooldown = false
-					# Explicitly signal player_detection_lost when alertness drops to zero
-					emit_signal("player_detection_lost", self)
+				# Transition from DETECTED to ALERT (cooldown part 1)
+				current_sentry_state = SentryState.ALERT
+				alert_points = MAX_METER_POINTS # Keep alert bar full
+				suspicion_points = MAX_METER_POINTS # Keep suspicion bar full
+				alert_after_detected_timer = 0.0 # Start the 30s ALERT timer
+				is_in_alert_after_detected_cooldown = true
+				print_debug("Sentry: DETECTED linger ENDED. STATE CHANGE -> ALERT (Cooldown Stage 1)")
+		# Handle ALERT state (specifically the 30s cooldown after DETECTED)
+		elif current_sentry_state == SentryState.ALERT and is_in_alert_after_detected_cooldown:
+			if alert_after_detected_timer < ALERT_DURATION_AFTER_DETECTED:
+				alert_after_detected_timer += delta
+				print_debug("Sentry: ALERT (after detected) cooldown. Timer: ", alert_after_detected_timer)
+				alert_points = MAX_METER_POINTS # Keep full during this phase
+				suspicion_points = MAX_METER_POINTS
+			else:
+				# Cooldown from ALERT (after DETECTED) to IDLE is complete
+				current_sentry_state = SentryState.IDLE
+				suspicion_points = 0
+				alert_points = 0
+				is_in_alert_after_detected_cooldown = false
+				print_debug("Sentry: ALERT (after detected) cooldown ENDED. STATE CHANGE -> IDLE")
+		# Handle normal cooldown (not from detected linger)
+		elif current_sentry_state == SentryState.ALERT:
+			current_cooldown_delay_timer += delta
+			if current_cooldown_delay_timer >= cooldown_start_delay:
+				alert_points = max(0, alert_points - alert_decay_rate * delta)
+				if alert_points == 0 and current_sentry_state == SentryState.ALERT:
+					current_sentry_state = SentryState.SUSPICIOUS # Drop to suspicious
+					print_debug("Sentry: Normal Cooldown. STATE CHANGE -> SUSPICIOUS (Alert points depleted)")
+				# Decay suspicion points only if not in ALERT or if alert points are zero
+				# (Suspicion bar stays full during ALERT until alert points deplete)
+				if current_sentry_state == SentryState.SUSPICIOUS:
+					suspicion_points = max(0, suspicion_points - suspicion_decay_rate * delta)
+					if suspicion_points == 0:
+						current_sentry_state = SentryState.IDLE
+						print_debug("Sentry: Normal Cooldown. STATE CHANGE -> IDLE (Suspicion points depleted)")
+		elif current_sentry_state == SentryState.SUSPICIOUS:
+			current_cooldown_delay_timer += delta
+			if current_cooldown_delay_timer >= cooldown_start_delay:
+				suspicion_points = max(0, suspicion_points - suspicion_decay_rate * delta)
+				if suspicion_points == 0:
+					current_sentry_state = SentryState.IDLE
+					print_debug("Sentry: Normal Cooldown. STATE CHANGE -> IDLE (Suspicion points depleted)")
+		elif current_sentry_state == SentryState.IDLE:
+			suspicion_points = 0
+			alert_points = 0
+			current_cooldown_delay_timer = 0.0 # Reset timers
+			detected_linger_timer = 0.0
+			alert_after_detected_timer = 0.0
+			is_in_alert_after_detected_cooldown = false
+
+	# If state changed, call the handler
+	if previous_state != current_sentry_state:
+		_on_sentry_state_changed(previous_state, current_sentry_state)
+	else:
+		# If state hasn't changed, but points might have, still update bar
+		# This is important for continuous updates while player is visible
+		_update_layered_status_bar()
+
+	# Handle Idle Task Timers (like waypoint waiting)
+	if idle_task_state == IdleTasks.WAIT and current_wait_timer > 0:
+		current_wait_timer -= delta
+		# print_debug("Sentry: Waiting at waypoint. Timer: ", current_wait_timer) # Can be too spammy
+		if current_wait_timer <= 0:
+			idle_task_state = IdleTasks.PATROL # Resume patrol
+			current_wait_timer = 0
+			_has_waited_at_current_waypoint = true # Mark that we've waited at this waypoint for this visit
+			print_debug("Sentry: ==> Wait timer FINISHED at waypoint. Resuming patrol. Has waited flag SET.")
+		else:
+			# print_debug("Sentry: Still waiting at waypoint. Skipping detection/cooldown.") # Also spammy
+			return # Still waiting, skip other detection/cooldown logic for this frame
+
+	_update_layered_status_bar()
+
+func _update_status_bar_positioning() -> void:
+	if not is_instance_valid(status_bar_instance) or not is_instance_valid(animated_sprite_2d_ref_for_status_bar):
+		return
+
+	# Calculate base X position (center of the sprite)
+	var base_x_pos: float = animated_sprite_2d_ref_for_status_bar.global_position.x
+
+	# Calculate Y position for status bar
+	var y_pos: float
+	var sprite_frame_tex = animated_sprite_2d_ref_for_status_bar.sprite_frames.get_frame_texture(animated_sprite_2d.animation, animated_sprite_2d.frame)
+	if not sprite_frame_tex:
+		return # Cannot get texture, abort positioning
+	
+	var sprite_top_global_y: float = animated_sprite_2d_ref_for_status_bar.global_position.y - \
+							 (sprite_frame_tex.get_height() / 2.0) * animated_sprite_2d_ref_for_status_bar.global_scale.y
+
+	if emote_node.visible and (question_mark.visible or exclamation.visible):
+		# Position below the emote node (assuming emote_node's global_position.y is its top)
+		# This requires emote_node to have a predictable height or its origin at its bottom for PADDING_BELOW_EMOTE to work as intended.
+		# A more robust way would be to get the emote's actual bounding box bottom.
+		# For now, using emote_node.global_position.y as a reference point. If it's the center, adjust PADDING.
+		y_pos = emote_node.global_position.y + PADDING_BELOW_EMOTE # This might need adjustment based on emote's origin
+	else:
+		y_pos = sprite_top_global_y + STATUS_BAR_Y_OFFSET_FROM_SPRITE_TOP
+
+	status_bar_instance.global_position = Vector2(base_x_pos, y_pos)
+	# Ensure it's not rotated with the parent Sentry (Node2D)
+	# Control nodes use 'rotation' (radians) or 'rotation_degrees'
+	# To counteract parent's global_rotation, set local rotation to its negative.
+	status_bar_instance.rotation = -global_rotation 
+
+
+# --- Player Visibility Update --- 
+# This function should be called by your VisionManager or detection system
+func set_player_visibility(p_is_visible: bool) -> void:
+	print("Sentry: set_player_visibility called with: ", p_is_visible, ". Current visibility: ", is_player_currently_visible)
+	if is_player_currently_visible == p_is_visible:
+		return # No change
+
+	is_player_currently_visible = p_is_visible
+	# print("Player visibility changed to: ", is_player_currently_visible) # Original print, can be re-enabled if needed
+
+	if not p_is_visible:
+		# Player just lost from sight, reset general cooldown delay timer to start counting now
+		# Specific timers like detected_linger_timer are handled in _process_detection
+		current_cooldown_delay_timer = 0.0
 		
-		# Update state based on alertness value changes from player interaction
-		update_alertness()
-		
-		# Debug output
-		var state_str = "IDLE"
-		if alertness_value >= alertness_threshold:
-			state_str = "ALERTED"
-		elif alertness_value >= suspicion_threshold:
-			state_str = "SUSPICIOUS"
-		
-		# Build cooldown status string
-		var cooldown_status_text = "Cooldown: " + ("Active" if is_in_cooldown else "Inactive")
-		if was_player_seen and !player_in_sight: # Only show timer details if relevant
-			if !is_in_cooldown: # Show timer counting up to delay
-				cooldown_status_text += ", Timer: %.1f/%.1f (Delay)" % [cooldown_timer, active_cooldown_delay]
-			else: # Show that cooldown is active (decreasing alertness)
-				cooldown_status_text += ", Rate: %.2f" % active_cooldown_rate
-		
-		# Create visual bar
-		var bar = "[" + ("|" as String).repeat(int(alertness_value * 20)) \
-			+ (" " as String).repeat(20 - int(alertness_value * 20)) \
-			+ "] %3d%% %-10s (%s)" % [int(alertness_value * 100), state_str, cooldown_status_text]
-		print("Alertness: ", bar)
-
-func _process(_delta: float) -> void: # Renamed delta to _delta to address unused parameter warning
-	# Update status bar position
-	if is_instance_valid(status_bar_instance):
-		var status_bar_pos: Vector2 = Vector2.ZERO
-
-		# Center the status bar horizontally above the sprite
-		# Assumes status_bar_instance's origin is top-left
-		status_bar_pos.x = -status_bar_instance.size.x / 2.0
-
-		# Position below the emote
-		# This part requires knowing how your emote_node is structured and positioned.
-		# Assuming emote_node.position.y is relative to the sentry,
-		# and emote_node has a known height (e.g., from its texture or a bounding box).
-		if is_instance_valid(emote_node) and emote_node.visible:
-			# Assuming emote_node's Y position is its top, and it has a 'size' property (like Control nodes)
-			# or a way to get its height.
-			var emote_height: float = 0.0
-			if emote_node.has_method("get_rect"): # For Control nodes
-				emote_height = emote_node.get_rect().size.y * emote_node.scale.y
-			elif emote_node is Sprite2D and emote_node.texture:
-				emote_height = emote_node.texture.get_height() * emote_node.scale.y
-			# Add other checks if emote_node is a different type
-
-			# emote_node.position.y is where the emote's origin is.
-			# If emote is above sentry, emote_node.position.y is negative.
-			# The bottom of the emote would be emote_node.position.y + emote_height (if origin is top-left)
-			# OR emote_node.position.y if origin is bottom-left and position.y is the bottom line.
-			# Let's assume emote_node.position.y is the TOP of the emote relative to sentry.
-			var emote_bottom_y: float = emote_node.position.y + emote_height
-			status_bar_pos.y = emote_bottom_y + PADDING_BELOW_EMOTE
-		elif is_instance_valid(animated_sprite_2d_ref_for_status_bar): # Fallback if emote_node is not valid/visible
-			# Fallback: Position above the sprite if emote is not available
-			# Assuming sprite's origin is its center, and sprite.texture gives its height.
-			var sprite_top_y: float = 0.0
-			if animated_sprite_2d_ref_for_status_bar.sprite_frames and animated_sprite_2d_ref_for_status_bar.animation:
-				var current_anim_name: StringName = animated_sprite_2d_ref_for_status_bar.animation
-				if animated_sprite_2d_ref_for_status_bar.sprite_frames.has_animation(current_anim_name):
-					var frame_texture: Texture2D = animated_sprite_2d_ref_for_status_bar.sprite_frames.get_frame_texture(current_anim_name, animated_sprite_2d_ref_for_status_bar.frame)
-					if frame_texture:
-						sprite_top_y = -frame_texture.get_height() / 2.0 * animated_sprite_2d_ref_for_status_bar.scale.y
-			status_bar_pos.y = sprite_top_y + STATUS_BAR_Y_OFFSET_FROM_SPRITE_TOP
-
-		status_bar_instance.position = status_bar_pos
+		# If player was DETECTED and is now lost, start the detected_linger_timer
+		if current_sentry_state == SentryState.DETECTED:
+			detected_linger_timer = 0.0 # Reset and start counting in _process_detection
+	else:
+		# Player just became visible
+		# Reset cooldown timers as progression will now happen
+		current_cooldown_delay_timer = 0.0
+		detected_linger_timer = 0.0
+		alert_after_detected_timer = 0.0
+		# If was in special alert cooldown, player being seen cancels it.
+		is_in_alert_after_detected_cooldown = false 

@@ -1,6 +1,18 @@
-[gd_scene load_steps=2 format=3 uid="uid://dofr485cy0d56"]
+[gd_scene load_steps=6 format=3 uid="uid://dofr485cy0d56"]
 
 [ext_resource type="Script" uid="uid://c6tipe6cgo6e7" path="res://assets/scenes/ui/status_bar.gd" id="1_mjmv3"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mjmv3"]
+bg_color = Color(0.2, 0.2, 0.2, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_muw7r"]
+bg_color = Color(1, 1, 1, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_6sedg"]
+bg_color = Color(0.6, 0.6, 0.6, 0)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_isjv8"]
+bg_color = Color(1, 1, 0, 1)
 
 [node name="StatusBar" type="Control"]
 layout_mode = 3
@@ -11,9 +23,21 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_mjmv3")
 
-[node name="DisplayBar" type="ProgressBar" parent="."]
+[node name="SuspicionBar" type="ProgressBar" parent="."]
 layout_mode = 0
 offset_left = -16.0
 offset_right = 16.0
 offset_bottom = 4.0
+theme_override_styles/background = SubResource("StyleBoxFlat_mjmv3")
+theme_override_styles/fill = SubResource("StyleBoxFlat_muw7r")
+show_percentage = false
+
+[node name="AlertBar" type="ProgressBar" parent="."]
+visible = false
+layout_mode = 0
+offset_left = -16.0
+offset_right = 16.0
+offset_bottom = 4.0
+theme_override_styles/background = SubResource("StyleBoxFlat_6sedg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_isjv8")
 show_percentage = false

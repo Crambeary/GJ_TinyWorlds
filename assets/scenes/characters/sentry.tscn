@@ -182,6 +182,8 @@ flip_h = true
 position = Vector2(0, -18)
 cant_see_past_dist = 250.0
 always_see_within_dist = 12.0
+front_direction = 0
+debug_view = true
 
 [node name="Emotes" type="Node2D" parent="."]
 
