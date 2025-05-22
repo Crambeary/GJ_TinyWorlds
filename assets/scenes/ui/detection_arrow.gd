@@ -37,6 +37,9 @@ func _ready() -> void:
 	# Make sure the arrow is above other elements
 	z_index = 10
 
+# Track the last entity position to handle direction correctly
+var last_entity_position: Vector2 = Vector2.ZERO
+
 func _process(delta: float) -> void:
 	# Only hide arrow when detection level is exactly zero
 	if detection_level <= 0.0:
@@ -54,9 +57,16 @@ func _process(delta: float) -> void:
 		var direction: Vector2 = (detecting_entity.global_position - global_position).normalized()
 		rotation = direction.angle()
 		
+		# Store this valid position for later use
+		last_entity_position = detecting_entity.global_position
+		
 		# Update arrow appearance based on detection level
 		_update_arrow_appearance(delta)
-	elif visible:
+	elif visible and last_entity_position != Vector2.ZERO:
+		# Even when fading out, keep pointing to the last known position
+		var direction: Vector2 = (last_entity_position - global_position).normalized()
+		rotation = direction.angle()
+		
 		# Fade out if no longer detected
 		detection_level = max(0.0, detection_level - delta * 2.0) # Faster fade out
 		_update_arrow_appearance(delta)
@@ -67,6 +77,11 @@ func start_detection(entity: Node2D, initial_level: float = 0.05) -> void:
 	is_detected = true
 	detection_level = initial_level
 	visible = true
+	
+	# Update arrow direction immediately
+	if is_instance_valid(detecting_entity):
+		var direction: Vector2 = (detecting_entity.global_position - global_position).normalized()
+		rotation = direction.angle()
 	
 	# Set initial appearance
 	_update_arrow_appearance(0.0)
@@ -101,7 +116,11 @@ func update_detection_level(new_level: float) -> void:
 ## Stop showing the detection arrow
 func stop_detection() -> void:
 	is_detected = false
-	# Let the process function handle the fade out
+	detection_level = 0.0
+	last_entity_position = Vector2.ZERO
+	# Immediately hide the arrow
+	visible = false
+	detection_ended.emit()
 
 ## Update arrow's visual appearance based on detection level
 func _update_arrow_appearance(_delta: float) -> void:

@@ -49,12 +49,15 @@ func _on_sentry_detection_lost(detector) -> void:
 	if not is_instance_valid(detector):
 		return
 		
-	# Remove from detecting entities but let arrow fade out naturally
+	# Remove from detecting entities
 	detecting_entities.erase(detector)
 	
-	# Tell the arrow to start fading out
+	# Force the arrow to show detection level of 0 to make it disappear immediately
 	if active_arrows.has(detector):
+		# First set detection level to 0 which should trigger immediate disappearance
+		active_arrows[detector].update_detection_level(0.0)
 		active_arrows[detector].stop_detection()
+		
 		# Connect to detection_ended to clean up when fully faded
 		if not active_arrows[detector].detection_ended.is_connected(_on_arrow_detection_ended):
 			active_arrows[detector].detection_ended.connect(_on_arrow_detection_ended.bind(detector))

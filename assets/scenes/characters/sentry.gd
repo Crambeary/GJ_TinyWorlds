@@ -285,6 +285,8 @@ func _physics_process(delta: float) -> void:
 					alertness_value = 0.0
 					was_player_seen = false
 					is_in_cooldown = false
+					# Explicitly signal player_detection_lost when alertness drops to zero
+					emit_signal("player_detection_lost", self)
 		
 		# Update state based on alertness value changes from player interaction
 		update_alertness()
