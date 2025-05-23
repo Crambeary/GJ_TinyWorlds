@@ -754,7 +754,7 @@ slide_on_ceiling = false
 script = ExtResource("1_03h60")
 
 [node name="TopDownCharacterMover" parent="." instance=ExtResource("4_o6put")]
-max_move_speed = 150.0
+max_move_speed = 100.0
 
 [node name="TopDownInput" parent="." instance=ExtResource("2_rtle4")]
 
