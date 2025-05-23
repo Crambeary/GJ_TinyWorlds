@@ -9,9 +9,6 @@
 [ext_resource type="PackedScene" uid="uid://drgy5ywjdpjnl" path="res://addons/MizGodotTools/characters_utility/top_down_character_mover/top_down_character_mover.tscn" id="4_o6put"]
 [ext_resource type="Script" uid="uid://b1ckqjcr6vftk" path="res://assets/scenes/characters/top_down_player_animation.gd" id="7_6uukj"]
 
-[sub_resource type="CircleShape2D" id="CircleShape2D_o6put"]
-radius = 4.0
-
 [sub_resource type="AtlasTexture" id="AtlasTexture_03h60"]
 atlas = ExtResource("1_1afkf")
 region = Rect2(0, 0, 32, 32)
@@ -747,6 +744,9 @@ animations = [{
 "speed": 8.0
 }]
 
+[sub_resource type="CircleShape2D" id="CircleShape2D_o6put"]
+radius = 3.0
+
 [node name="Player" type="CharacterBody2D" groups=["player"]]
 collision_layer = 2
 slide_on_ceiling = false
@@ -754,10 +754,6 @@ script = ExtResource("1_03h60")
 
 [node name="TopDownCharacterMover" parent="." instance=ExtResource("4_o6put")]
 max_move_speed = 150.0
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-position = Vector2(0, -4)
-shape = SubResource("CircleShape2D_o6put")
 
 [node name="TopDownInput" parent="." instance=ExtResource("2_rtle4")]
 
@@ -768,6 +764,10 @@ sprite_frames = SubResource("SpriteFrames_df1vj")
 animation = &"idle_down"
 autoplay = "idle_down"
 script = ExtResource("7_6uukj")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -3)
+shape = SubResource("CircleShape2D_o6put")
 
 [node name="Camera2D" type="Camera2D" parent="."]
 zoom = Vector2(2, 2)

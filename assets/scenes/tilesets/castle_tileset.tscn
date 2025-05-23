@@ -674,7 +674,7 @@ texture = ExtResource("1_ty2dp")
 21:0/size_in_atlas = Vector2i(1, 2)
 21:0/0 = 0
 21:0/0/texture_origin = Vector2i(0, 8)
-21:0/0/physics_layer_0/polygon_0/points = PackedVector2Array(-8, -17.1429, 8, -17.1429, 8, 8, -8, 8)
+21:0/0/physics_layer_0/polygon_0/points = PackedVector2Array(-8, -16, 8, -16, 8, 8, -8, 8)
 22:0/size_in_atlas = Vector2i(1, 2)
 22:0/0 = 0
 22:0/0/texture_origin = Vector2i(0, 8)
@@ -782,6 +782,7 @@ texture = ExtResource("1_ty2dp")
 5:17/0 = 0
 5:18/0 = 0
 5:19/0 = 0
+12:11/0 = 0
 
 [sub_resource type="TileSet" id="TileSet_j32t8"]
 physics_layer_0/collision_layer = 1
