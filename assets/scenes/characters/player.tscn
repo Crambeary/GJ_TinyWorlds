@@ -744,8 +744,9 @@ animations = [{
 "speed": 8.0
 }]
 
-[sub_resource type="CircleShape2D" id="CircleShape2D_o6put"]
-radius = 3.0
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_y5lh6"]
+radius = 1.0
+height = 6.0
 
 [node name="Player" type="CharacterBody2D" groups=["player"]]
 collision_layer = 2
@@ -766,11 +767,12 @@ autoplay = "idle_down"
 script = ExtResource("7_6uukj")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-position = Vector2(0, -3)
-shape = SubResource("CircleShape2D_o6put")
+position = Vector2(0, -1)
+rotation = -1.57079
+shape = SubResource("CapsuleShape2D_y5lh6")
 
 [node name="Camera2D" type="Camera2D" parent="."]
-zoom = Vector2(2, 2)
+zoom = Vector2(3, 3)
 
 [node name="PlayerDetectionHandler" type="Node2D" parent="."]
 script = ExtResource("4_nrtg8")

@@ -119,9 +119,6 @@ func update_alertness():
 func update_alert_state(new_state: AlertnessState) -> void:
 	if alertness_state == new_state:
 		return
-	if not AlertnessState.has(new_state): # .has() checks if the enum contains the given value
-		push_error("Invalid new_state passed to update_alert_state: %s" % new_state)
-		return
 	
 	alertness_state = new_state
 	
@@ -307,10 +304,10 @@ func _physics_process(delta: float) -> void:
 				cooldown_status_text += ", Rate: %.2f" % active_cooldown_rate
 		
 		# Create visual bar
-		var bar = "[" + ("|" as String).repeat(int(alertness_value * 20)) \
+		var _bar = "[" + ("|" as String).repeat(int(alertness_value * 20)) \
 			+ (" " as String).repeat(20 - int(alertness_value * 20)) \
 			+ "] %3d%% %-10s (%s)" % [int(alertness_value * 100), state_str, cooldown_status_text]
-		#print("Alertness: ", bar)
+		#print("Alertness: ", _bar)
 
 func _process(_delta: float) -> void: # Renamed delta to _delta to address unused parameter warning
 	# Update status bar position
