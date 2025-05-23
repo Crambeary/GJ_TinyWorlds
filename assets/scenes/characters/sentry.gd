@@ -310,7 +310,7 @@ func _physics_process(delta: float) -> void:
 		var bar = "[" + ("|" as String).repeat(int(alertness_value * 20)) \
 			+ (" " as String).repeat(20 - int(alertness_value * 20)) \
 			+ "] %3d%% %-10s (%s)" % [int(alertness_value * 100), state_str, cooldown_status_text]
-		print("Alertness: ", bar)
+		#print("Alertness: ", bar)
 
 func _process(_delta: float) -> void: # Renamed delta to _delta to address unused parameter warning
 	# Update status bar position

@@ -1,9 +1,10 @@
-[gd_scene load_steps=6 format=4 uid="uid://b82ljks0hknpj"]
+[gd_scene load_steps=7 format=4 uid="uid://b82ljks0hknpj"]
 
 [ext_resource type="PackedScene" uid="uid://b0blgbxf1vgsh" path="res://assets/scenes/characters/player.tscn" id="1_l3887"]
 [ext_resource type="Script" uid="uid://dawy80ds4ku5r" path="res://assets/scripts/Waypoint2D.gd" id="2_07mv4"]
 [ext_resource type="PackedScene" uid="uid://btykre1m0ouee" path="res://assets/scenes/tilesets/castle_tileset.tscn" id="2_snkx0"]
 [ext_resource type="PackedScene" uid="uid://cl4ybl3p53ljw" path="res://assets/scenes/characters/sentry.tscn" id="4_4pjnc"]
+[ext_resource type="Script" uid="uid://dg5sfcbymcey7" path="res://assets/scripts/level_change.gd" id="5_snkx0"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_4pjnc"]
 
@@ -90,6 +91,10 @@ position = Vector2(-256, -64)
 path_group_name = "Sentry2"
 
 [node name="Area2D" type="Area2D" parent="."]
+collision_layer = 3
+collision_mask = 3
+script = ExtResource("5_snkx0")
+next_level_path = "uid://bg46bc8mvw3qj"
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
 position = Vector2(-48, -96)
